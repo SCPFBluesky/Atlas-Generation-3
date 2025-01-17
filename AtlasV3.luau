@@ -10,7 +10,7 @@
 	Licence: MIT
 	Version: 1.0.0
 	
-	Documentation: https://scpfbluesky.github.io/Atlas-API/
+	Documentation: https://scpfbluesky.github.io/A/
 	Source: https://github.com/SCPFBluesky/Atlas_FrameworkV3
 	Issues: https://github.com/SCPFBluesky/Atlas_FrameworkV3/issues
 ]]
