@@ -1,6 +1,8 @@
 # Atlas-Generation-3
 
-## Atlas is a small, Work-In-Progress framework made for Roblox!
+## What is Atlas?
+
+Atlas is a small, Work-In-Progress framework made for Roblox!
 
 Atlas is an open source development tool for roblox designed for developers to make development simple and easy.
 
