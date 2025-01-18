@@ -4,7 +4,7 @@
 local Atlas = require(game:FindService("ReplicatedStorage").AtlasV3); -- In order to use Atlas, we must first require it.
 
 -- Example 1 : Creating a new instance with Atlas and custom propertieis
-local New = Atlas:NewInstance("myNewPart!", "Part",  {Parent = workspace, Color = Color3.fromRGB(255, 0, 0), Material = Enum.Material.Neon});
+local New = Atlas.Create("myNewPart!", "Part",  {Parent = workspace, Color = Color3.fromRGB(255, 0, 0), Material = Enum.Material.Neon});
 
 -- End result of Example 1: A new bright neon part created and parented to workspace with the material of neon.
 
