@@ -22,4 +22,4 @@ Then to start using Atlas do the following or something similar:
 There is two resources available for you to learn from.
 
 1. [Example Scripts](https://github.com/SCPFBluesky/Atlas-Generation-3/tree/main/Examples)  Provides two Server\Client example scripts on using Atlas (With documentation)
-2. [Website](https://scpfbluesky.github.io/A/) Provides full documentation on each function Atlas offers!
+2. [Website](https://scpfbluesky.github.io/Atlas-API/) Provides full documentation on each function Atlas offers!
