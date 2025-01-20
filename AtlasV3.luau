@@ -1,6 +1,5 @@
 --!nonstrict
 --!native
---!optimize 2
 
 --[[
 	Name: AtlasV3.luau
@@ -74,21 +73,6 @@ local warn = function(...)
 	warn("[ATLAS/OUTPUT]: ", ...);
 end;
 
-do
-	print("Loading Atlas, this may get laggy.")
-
-	for _,Tagged: (any) in ColllectionService:GetTagged("Atlas_Module") do
-		local ModuleName = tostring(Tagged)
-		Modules[ModuleName] = Tagged
-	end;
-
-	for _,Tagged: (any) in ColllectionService:GetTagged("Atlas_Object") do
-		local ModuleName =  tostring(Tagged)
-		Objects[ModuleName] = Tagged
-	end;
-
-	print("Loading Complete!")
-end;
 
 --[=[
 	@within Atlas
@@ -102,15 +86,19 @@ end;
 ]=]
 function Atlas:Import(ModuleName: (any?) )
 	assert(ModuleName, "Attempt to call Atlas:Import, but no module was provided.")
-
-	repeat task.wait() until Modules[ModuleName]
-	
-	local Succ, Error = pcall(function(...) 
-		return require(Modules[ModuleName]);
-	end)
-
-	if not Succ then
-		warn("Module experienced an error while importing: " ..Error);
+	for _,v: (ModuleScript) in next, ColllectionService:GetTagged("Atlas_Module") do
+		if v:IsA("ModuleScript") then
+			local Succ, Result = pcall(function()
+				return require(v);
+			end);
+			
+			if Succ then
+				Modules[ModuleName] = Result
+				return Result;
+			else
+				return warn("[ATLAS:IMPORT]: Failed to load Module: ", ModuleName, Result);
+			end;
+		end;
 	end;
 end;
 
@@ -153,10 +141,17 @@ end;
 ]=]
 function Atlas:GetObject(ObjectName: (any?) ) : any?
 	assert(ObjectName, "Attempt to call Atlas:GetObject, but no ObjectName was provided.");
-	
-	repeat task.wait() until Objects[ObjectName]
 
-	return Objects[ObjectName];
+	if Objects[ObjectName] then
+		return Objects[ObjectName];	
+	end;
+	
+	for _,v in next, ColllectionService:GetTagged("Atlas_Object") do
+		if tostring(v) == ObjectName then
+			Objects[ObjectName] = v;
+			return v;
+		end;
+	end;
 end;
 
 --[=[
@@ -199,7 +194,7 @@ end;
 function Atlas:BindToRemoteFunction(EventName: (string), CallBack: (Instance) -> ()): RBXScriptConnection
 	assert(EventName, "Attempt to call BindToRemoteFunction but no EventName was provided");
 	assert(CallBack, "Attempt to call BindToRemoteFunction but no function was provided.");
-	
+
 	if IsServer then
 		AtlasRemoteFunction.OnServerInvoke = function(Player: (Player), Event: (string), ...)
 			if Event == EventName then
