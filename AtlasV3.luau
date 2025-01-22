@@ -33,28 +33,17 @@ local ReplicatedStorage = game:FindService("ReplicatedStorage");
 local RunService = game:GetService("RunService");
 local ColllectionService = game:GetService("CollectionService");
 
-if RunService:IsServer() and not ReplicatedStorage:FindFirstChild("Atlas_Remote") then
-	local newRemote = Instance.new("RemoteEvent");
-
-	newRemote.Name = "Atlas_Remote"	
-	newRemote.Parent = ReplicatedStorage
-
-	local newRemoteFunction = Instance.new("RemoteFunction");
-
-	newRemoteFunction.Name = "Atlas_RemoteFunction"
-	newRemoteFunction.Parent = ReplicatedStorage
-end;
 
 
-local AtlasRemoteEvent: (RemoteEvent) = ReplicatedStorage:WaitForChild("Atlas_Remote"); 
-local AtlasRemoteFunction: (RemoteFunction) = ReplicatedStorage:WaitForChild("Atlas_RemoteFunction");
+local AtlasRemoteEvent: (RemoteEvent) = ReplicatedStorage.Atlas_Remote;
+local AtlasRemoteFunction: (RemoteFunction) = ReplicatedStorage.Atlas_RemoteFunction;
 
 export type Modules =  {
-	[number]: {ModuleScript?}
+	[number]: {ModuleScript?};
 };
 
 export type Objects = {
-	[number]: {Instance?}
+	[number]: {Instance?};
 };
 
 local Modules: (Modules) = {};
@@ -87,7 +76,8 @@ end;
 function Atlas:Import(ModuleName: (any?) )
 	assert(ModuleName, "Attempt to call Atlas:Import, but no module was provided.")
 	for _,v: (ModuleScript) in next, ColllectionService:GetTagged("Atlas_Module") do
-		if v:IsA("ModuleScript") then
+		if v:IsA("ModuleScript") and ModuleName == tostring(v) then
+			
 			local Succ, Result = pcall(function()
 				return require(v);
 			end);
