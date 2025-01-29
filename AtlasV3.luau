@@ -1,6 +1,5 @@
---!nonstrict
+--!nocheck
 --!native
-
 --[[
 	Name: AtlasV3.luau
 	Author(s): @WATDAHECKLOL32
@@ -25,6 +24,10 @@
 
 	The Atlas Framework.
 ]=]
+
+--// Localize globals for more speed
+local game, setmetatable, type, assert = game, setmetatable, type, assert;
+
 local Atlas = {};
 
 local Players = game:FindService("Players");
@@ -32,8 +35,6 @@ local ReplicatedStorage = game:FindService("ReplicatedStorage");
 
 local RunService = game:GetService("RunService");
 local ColllectionService = game:GetService("CollectionService");
-
-
 
 local AtlasRemoteEvent: (RemoteEvent) = ReplicatedStorage.Atlas_Remote;
 local AtlasRemoteFunction: (RemoteFunction) = ReplicatedStorage.Atlas_RemoteFunction;
@@ -74,10 +75,14 @@ end;
 	A neater and slower verison of require, taking a string. And then looks up in the modules table, remember if you wish to require this way the target module must have the "Atlas_Module" Tag.
 ]=]
 function Atlas:Import(ModuleName: (any?) )
-	assert(ModuleName, "Attempt to call Atlas:Import, but no module was provided.")
+    assert(ModuleName, "Attempt to call Atlas:Import, but no module was provided.");
+     
+    local ModuleFound = false;
+    
 	for _,v: (ModuleScript) in next, ColllectionService:GetTagged("Atlas_Module") do
 		if v:IsA("ModuleScript") and ModuleName == tostring(v) then
-			
+            
+            ModuleFound = true
 			local Succ, Result = pcall(function()
 				return require(v);
 			end);
@@ -89,7 +94,10 @@ function Atlas:Import(ModuleName: (any?) )
 				return warn("[ATLAS:IMPORT]: Failed to load Module: ", ModuleName, Result);
 			end;
 		end;
-	end;
+    end;
+    if not ModuleFound then
+        warn("The provided Module Name was not found in CollectionService, this can cause your script to yeld: ", ModuleName)
+    end;
 end;
 
 --[=[
@@ -129,19 +137,25 @@ end;
 	
 	Allows you to get any object that has the Atlas_Object tag.
 ]=]
-function Atlas:GetObject(ObjectName: (any?) ) : any?
+function Atlas:GetObject(ObjectName: (string?) )
 	assert(ObjectName, "Attempt to call Atlas:GetObject, but no ObjectName was provided.");
-
+    
+    local ObjectFound = false;
+    
 	if Objects[ObjectName] then
 		return Objects[ObjectName];	
 	end;
 	
 	for _,v in next, ColllectionService:GetTagged("Atlas_Object") do
-		if tostring(v) == ObjectName then
+        if tostring(v) == ObjectName then
+            ObjectFound = true
 			Objects[ObjectName] = v;
 			return v;
 		end;
-	end;
+    end;
+    if not ObjectFound then
+        warn("The provided Object Name was not found in CollectionService, this can cause your script to yeld: ", ObjectName)
+    end;
 end;
 
 --[=[
@@ -217,11 +231,11 @@ do
 
 	Allows you to FireServer the AtlasRemoteEvent.
 ]=]
-	function link:FireServer(EventName: (string), ...)
-		if IsClient then
-			return AtlasRemoteEvent:FireServer(EventName, ...);
-		end;
+function link:FireServer(EventName: (string), ...)
+	if IsClient then
+		return AtlasRemoteEvent:FireServer(EventName, ...);
 	end;
+end;
 
 --[=[
 	@within link
@@ -233,11 +247,11 @@ do
 
 	Allows you too fire the remote to all clients.
 ]=]
-	function link:FireAllClients(EventName: (string), ...)
-		if IsServer then
-			return AtlasRemoteEvent:FireAllClients(EventName, ...);
-		end;
+function link:FireAllClients(EventName: (string), ...)
+	if IsServer then
+		return AtlasRemoteEvent:FireAllClients(EventName, ...);
 	end;
+end;
 
 --[=[
 	@within link
@@ -250,15 +264,15 @@ do
 
 	Allows you too fire the remote to all clients expect for one specific client.
 ]=]
-	function link:FireAllClientsExpect(EventName: (string), Expect: (Player), ...)
-		if IsServer then
-			for _,Player: (Player) in Players:GetPlayers() do
-				if Player ~= Expect then
-					AtlasRemoteEvent:FireClient(Player, EventName, ...)
-				end;
+function link:FireAllClientsExpect(EventName: (string), Expect: (Player), ...)
+	if IsServer then
+		for _,Player: (Player) in Players:GetPlayers() do
+			if Player ~= Expect then
+				AtlasRemoteEvent:FireClient(Player, EventName, ...)
 			end;
 		end;
 	end;
+end;
 
 --[=[
 	@within link
@@ -271,11 +285,11 @@ do
 
 	Allows you to fire the remote to one specific client.
 ]=]
-	function link:FireClient(Player: (Player), EventName: (string), ...)
-		if IsServer then
-			return AtlasRemoteEvent:FireClient(Player, EventName, ...);
-		end;
+function link:FireClient(Player: (Player), EventName: (string), ...)
+	if IsServer then
+		return AtlasRemoteEvent:FireClient(Player, EventName, ...);
 	end;
+end;
 
 --[=[
 	@within link
@@ -287,11 +301,11 @@ do
 
 	Allows you to invoke the remote function on the server.
 ]=]
-	function link:InvokeServer(EventName: (string), ...)
-		if IsClient then
-			return AtlasRemoteFunction:InvokeServer(EventName, ...)
-		end;
+function link:InvokeServer(EventName: (string), ...)
+	if IsClient then
+		return AtlasRemoteFunction:InvokeServer(EventName, ...)
 	end;
+end;
 
 --[=[
 	@within link
@@ -304,11 +318,11 @@ do
 
 	Allows you to invoke the remote function for one specific player.
 ]=]
-	function link:InvokeClient(Player: (Player), EventName: (string), ...)
-		if IsServer then
-			return AtlasRemoteFunction:InvokeClient(Player, EventName, ...);
-		end;
+function link:InvokeClient(Player: (Player), EventName: (string), ...)
+	if IsServer then
+		return AtlasRemoteFunction:InvokeClient(Player, EventName, ...);
 	end;
+end;
 
 	Atlas.network = link
 end;
