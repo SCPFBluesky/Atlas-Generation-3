@@ -1,4 +1,4 @@
---!nocheck
+--!nonstrict
 --!native
 --[[
 	Name: AtlasV3.luau
@@ -26,7 +26,7 @@
 ]=]
 
 --// Localize globals for more speed
-local game, setmetatable, type, assert = game, setmetatable, type, assert;
+local game, setmetatable, type, assert, tostring = game, setmetatable, type, assert, tostring;
 
 local Atlas = {};
 
@@ -40,12 +40,22 @@ local AtlasRemoteEvent: (RemoteEvent) = ReplicatedStorage.Atlas_Remote;
 local AtlasRemoteFunction: (RemoteFunction) = ReplicatedStorage.Atlas_RemoteFunction;
 
 export type Modules =  {
-	[number]: {ModuleScript?};
+	[string]: {ModuleScript?};
 };
 
 export type Objects = {
-	[number]: {Instance?};
+	[string]: {Instance?};
 };
+
+export type Link = {
+	FireServer: (self: (any), EventName: (string) , ...(any) ) -> (RBXScriptConnection)?;
+	FireAllClients: (self: (any), EventName: string, ...(any) )  -> (RBXScriptConnection)?;
+	FireAllClientsExpect: (self: (any) ,EventName: (string) , Expect: (Player), ...(any) ) -> (RBXScriptConnection)?;
+	FireClient: (self: (any), Player: (Player), EventName: (string), ...(any) ) -> (RBXScriptConnection)?;
+	InvokeServer: (self: (any), EventName: (string), ...(any) ) -> (RBXScriptConnection)?;
+	InvokeClient: (self: (any), Player: (Player), EventName: (string), ...(any) ) -> (RBXScriptConnection)?
+};
+
 
 local Modules: (Modules) = {};
 local Objects: (Objects) = {};
@@ -74,19 +84,19 @@ end;
 	
 	A neater and slower verison of require, taking a string. And then looks up in the modules table, remember if you wish to require this way the target module must have the "Atlas_Module" Tag.
 ]=]
-function Atlas:Import(ModuleName: (any?) )
-    assert(ModuleName, "Attempt to call Atlas:Import, but no module was provided.");
-     
-    local ModuleFound = false;
-    
+function Atlas:Import(ModuleName: (any) )
+	assert(ModuleName, "Attempt to call Atlas:Import, but no module was provided.");
+
+	local ModuleFound = false;
+
 	for _,v: (ModuleScript) in next, ColllectionService:GetTagged("Atlas_Module") do
 		if v:IsA("ModuleScript") and ModuleName == tostring(v) then
-            
-            ModuleFound = true
+			ModuleFound = true
+			
 			local Succ, Result = pcall(function()
 				return require(v);
 			end);
-			
+
 			if Succ then
 				Modules[ModuleName] = Result
 				return Result;
@@ -94,10 +104,12 @@ function Atlas:Import(ModuleName: (any?) )
 				return warn("[ATLAS:IMPORT]: Failed to load Module: ", ModuleName, Result);
 			end;
 		end;
-    end;
-    if not ModuleFound then
-        warn("The provided Module Name was not found in CollectionService, this can cause your script to yeld: ", ModuleName)
-    end;
+	end;
+	
+	if not ModuleFound then
+		warn("The provided Module Name was not found in CollectionService: ", ModuleName);
+		return nil;
+	end;
 end;
 
 --[=[
@@ -116,11 +128,11 @@ function Atlas:RecursiveImport(ModuleName: (string), InstanceToSearch: (Instance
 	assert(InstanceToSearch, "Attempt to call Atlas:RecursiveImport, but no Instance was provided.");
 
 
-	local Stuff = {} :: ({any})
+	local Stuff = {} :: {Instance?}
 
 	Stuff = InstanceToSearch:GetDescendants()
 
-	for _,Instances: (ModuleScript) in Stuff do
+	for _,Instances: (ModuleScript?) in Stuff do
 		if Instances:IsA("ModuleScript") and tostring(Instances) == ModuleName then
 			return require(Instances);
 		end;
@@ -137,25 +149,26 @@ end;
 	
 	Allows you to get any object that has the Atlas_Object tag.
 ]=]
-function Atlas:GetObject(ObjectName: (string?) )
+function Atlas:GetObject(ObjectName: (string) )
 	assert(ObjectName, "Attempt to call Atlas:GetObject, but no ObjectName was provided.");
-    
-    local ObjectFound = false;
-    
+
+	local ObjectFound = false;
+
 	if Objects[ObjectName] then
 		return Objects[ObjectName];	
 	end;
-	
-	for _,v in next, ColllectionService:GetTagged("Atlas_Object") do
-        if tostring(v) == ObjectName then
-            ObjectFound = true
-			Objects[ObjectName] = v;
-			return v;
+
+	for _,Object: (Instance?) in next, ColllectionService:GetTagged("Atlas_Object") do
+		if tostring(Object) == ObjectName then
+			ObjectFound = true
+			Objects[ObjectName] = Object;
+			return Object;
 		end;
-    end;
-    if not ObjectFound then
-        warn("The provided Object Name was not found in CollectionService, this can cause your script to yeld: ", ObjectName)
-    end;
+	end;
+	if not ObjectFound then
+		warn("The provided Object Name was not found in CollectionService: ", ObjectName);
+		return nil;
+	end;
 end;
 
 --[=[
@@ -167,7 +180,7 @@ end;
 
 	Allows you to bind functions to the Atlas_RemoteEvent.
 ]=]
-function Atlas:BindToRemoteEvent(EventName: (string), CallBack: (Instance) -> ()): RBXScriptConnection
+function Atlas:BindToRemoteEvent(EventName: (string), CallBack: (any) )
 	assert(EventName, "Attempt to call Atlas:BindToEvent but no eventname was provided.");
 	assert(CallBack, "Attempt to call Atlas:BindToEvent but no function was provided.");
 
@@ -218,116 +231,127 @@ do
 
 	The Atlas Networking.
 ]=]
-	local link = setmetatable({}, {__Index = Atlas});
+	
+	local link: (Link) = setmetatable({
+    --[=[
+    @within link
+    @method link:FireServer
+    @tag Networking
+    @client
+    @param EventName String -- The event you wish to trigger.
+    @return Event  RBXScriptConnection -- Returns.
 
-
---[=[
-	@within link
-	@method link:FireServer
-	@tag Networking
-	@client
-	@param EventName String -- The event you wish to trigger.
-	@return Event  RBXScriptConnection -- Returns.
-
-	Allows you to FireServer the AtlasRemoteEvent.
-]=]
-function link:FireServer(EventName: (string), ...)
-	if IsClient then
-		return AtlasRemoteEvent:FireServer(EventName, ...);
-	end;
-end;
-
---[=[
-	@within link
-	@method link:FireAllClients
-	@tag Networking
-	@server
-	@param EventName String -- The event you wish to trigger.
-	@return Event  RBXScriptConnection -- Returns.
-
-	Allows you too fire the remote to all clients.
-]=]
-function link:FireAllClients(EventName: (string), ...)
-	if IsServer then
-		return AtlasRemoteEvent:FireAllClients(EventName, ...);
-	end;
-end;
-
---[=[
-	@within link
-	@method link:FireAllClientsExpect
-	@tag Networking
-	@server
-	@param EventName String -- The event you wish to trigger.
-	@param Expect Player -- The expection (Remote will not be fired for this player.)
-	@return Event  RBXScriptConnection -- Returns.
-
-	Allows you too fire the remote to all clients expect for one specific client.
-]=]
-function link:FireAllClientsExpect(EventName: (string), Expect: (Player), ...)
-	if IsServer then
-		for _,Player: (Player) in Players:GetPlayers() do
-			if Player ~= Expect then
-				AtlasRemoteEvent:FireClient(Player, EventName, ...)
+    Allows you to FireServer the AtlasRemoteEvent.
+    ]=]
+		FireServer = function(self, EventName, ...)
+			if IsClient then
+				return AtlasRemoteEvent:FireServer(EventName, ...);
+			else
+				return nil;
 			end;
-		end;
-	end;
-end;
+		end,
 
---[=[
-	@within link
-	@method link:FireClient
-	@tag Networking
-	@server
-	@param Player Player -- The client you wish to trigger the remote for.
-	@param EventName String -- The event you wish to trigger.
-	@return Event  RBXScriptConnection -- Returns.
+    --[=[
+    @within link
+    @method link:FireAllClients
+    @tag Networking
+    @server
+    @param EventName String -- The event you wish to trigger.
+    @return Event  RBXScriptConnection -- Returns.
 
-	Allows you to fire the remote to one specific client.
-]=]
-function link:FireClient(Player: (Player), EventName: (string), ...)
-	if IsServer then
-		return AtlasRemoteEvent:FireClient(Player, EventName, ...);
-	end;
-end;
+    Allows you to fire the remote to all clients.
+    ]=]
+		FireAllClients = function(self, EventName, ...)
+			if IsServer then
+				return AtlasRemoteEvent:FireAllClients(EventName, ...);
+			else
+				return nil;
+			end;
+		end,
 
---[=[
-	@within link
-	@method link:InvokeServer
-	@tag Networking
-	@client
-	@param EventName String -- The event you wish to trigger.
-	@return Event  RBXScriptConnection -- Returns.
+    --[=[
+    @within link
+    @method link:FireAllClientsExpect
+    @tag Networking
+    @server
+    @param EventName String -- The event you wish to trigger.
+    @param Expect Player -- The exception (Remote will not be fired for this player.)
+    @return Event  RBXScriptConnection -- Returns.
 
-	Allows you to invoke the remote function on the server.
-]=]
-function link:InvokeServer(EventName: (string), ...)
-	if IsClient then
-		return AtlasRemoteFunction:InvokeServer(EventName, ...)
-	end;
-end;
+    Allows you to fire the remote to all clients except for one specific client.
+    ]=]
+		FireAllClientsExpect = function(self, EventName, Expect, ...)
+			if IsServer then
+				for _, Player: (Player) in next, Players:GetPlayers() do
+					if Player ~= Expect then
+						AtlasRemoteEvent:FireClient(Player, EventName, ...)
+					end;
+				end;
+			else
+				return nil;
+			end;
+		end,
 
---[=[
-	@within link
-	@method link:InvokeClient
-	@tag Networking
-	@server
-	@param Player Player - The target player
-	@param EventName String -- The event you wish to trigger.
-	@return Event  RBXScriptConnection -- Returns.
+    --[=[
+    @within link
+    @method link:FireClient
+    @tag Networking
+    @server
+    @param Player Player -- The client you wish to trigger the remote for.
+    @param EventName String -- The event you wish to trigger.
+    @return Event  RBXScriptConnection -- Returns.
 
-	Allows you to invoke the remote function for one specific player.
-]=]
-function link:InvokeClient(Player: (Player), EventName: (string), ...)
-	if IsServer then
-		return AtlasRemoteFunction:InvokeClient(Player, EventName, ...);
-	end;
-end;
+    Allows you to fire the remote to one specific client.
+    ]=]
+		FireClient = function(self, Player, EventName, ...)
+			if IsServer then
+				return AtlasRemoteEvent:FireClient(Player, EventName, ...);
+			else
+				return nil;
+			end;
+		end,
+
+    --[=[
+    @within link
+    @method link:InvokeServer
+    @tag Networking
+    @client
+    @param EventName String -- The event you wish to trigger.
+    @return Event  RBXScriptConnection -- Returns.
+
+    Allows you to invoke the remote function on the server.
+    ]=]
+		InvokeServer = function(self, EventName, ...)
+			if IsClient then
+				return AtlasRemoteFunction:InvokeServer(EventName, ...);
+			else
+				return nil;
+			end;
+		end,
+
+    --[=[
+    @within link
+    @method link:InvokeClient
+    @tag Networking
+    @server
+    @param Player Player - The target player
+    @param EventName String -- The event you wish to trigger.
+    @return Event  RBXScriptConnection -- Returns.
+
+    Allows you to invoke the remote function for one specific player.
+    ]=]
+		InvokeClient = function(self, Player, EventName, ...)
+			if IsServer then
+				return AtlasRemoteFunction:InvokeClient(Player, EventName, ...);
+			else
+				return nil;
+			end;
+		end,
+	}, { __index = Atlas });
 
 	Atlas.network = link
+
 end;
-
-
 --[=[
 	@within Atlas
 	@method Atlas.Create
